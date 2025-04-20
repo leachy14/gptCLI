@@ -434,6 +434,19 @@ class OpenAIClientWrapper:
                 "input": last_user_msg,
             }
 
+            # Preserve any system‑level instructions by translating the first
+            # system message(s) in the chat history into the `instructions`
+            # parameter expected by the stateful *Responses* API.  Without
+            # this the assistant would lose crucial context (e.g. our 80‑
+            # column formatting guideline) after the very first turn.
+
+            system_prompts = [m.get("content", "") for m in messages if m.get("role") == "system"]
+            if system_prompts:
+                # Multiple system messages are concatenated with blank lines
+                # which roughly mirrors the behaviour of separate chat
+                # messages in the Completions API.
+                resp_kwargs["instructions"] = "\n\n".join(system_prompts)
+
             if enable_web_search:
                 # Use the preview web search tool – stable models may use "web_search"
                 resp_kwargs["tools"] = [{"type": "web_search_preview"}]
@@ -576,8 +589,12 @@ class ChatCLI:
                 except FileNotFoundError as exc:
                     print(exc)
         elif cmd == "/clear":
+            # Remove all turn messages but immediately restore the persistent
+            # system prompt so that subsequent requests keep receiving the
+            # correct instructions.
             self.session.messages.clear()
-            print("[conversation cleared]")
+            self.session.messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+            print("[conversation cleared – system prompt reinstated]")
         elif cmd == "/tool":
             if len(parts) != 3 or parts[1].lower() != "websearch" or parts[2] not in {"on", "off"}:
                 print("Usage: /tool websearch on|off")
