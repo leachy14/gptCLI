@@ -1,1 +1,2 @@
-python3 chat_cli.py
+#!/bin/bash
+python3 -m chat_cli
