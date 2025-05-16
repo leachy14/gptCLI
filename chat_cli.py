@@ -97,7 +97,7 @@ REASONING_LABEL = _Ansi.style("reasoning", _Ansi.FG_MAGENTA, _Ansi.BOLD)
 # if available) counts those bytes as **printable** characters unless
 # instructed otherwise.  This results in mis-aligned cursor positioning and
 # broken line wrapping once the user types beyond the terminal width – the
-# visual artefact the user reported as “it writes over itself”.  Readline
+# visual artefact the user reported as "it writes over itself".  Readline
 # solves this by allowing non-printing parts to be wrapped between the control
 # characters \001 (start of *hidden* sequence) and \002 (end).
 #
@@ -239,7 +239,7 @@ class Session:
         name: str,
         model: str,
         messages: Optional[List[Dict[str, Any]]] = None,
-        enable_web_search: bool = False,
+        enable_web_search: bool = True,
         enable_reasoning_summary: bool = False,
     ) -> None:
         self.name = name
@@ -271,7 +271,7 @@ class Session:
         }
         tmp_path = self.path.with_suffix(".tmp")
         # If any unexpected non‑serializable objects slip through we coerce
-        # them to strings to avoid breaking the CLI’s persistence mechanism.
+        # them to strings to avoid breaking the CLI's persistence mechanism.
         tmp_path.write_text(
             json.dumps(data, ensure_ascii=False, indent=2, default=str)
         )
@@ -327,7 +327,7 @@ class OpenAIClientWrapper:
     def _extract_text_from_response(resp: "openai.types.responses.response.Response") -> str:  # type: ignore[name-defined]
         """Return a human‑readable text string from a Responses API object.
 
-        The Responses API returns a rich, structured object. The assistant’s
+        The Responses API returns a rich, structured object. The assistant's
         answer lives inside `resp.output` → `ResponseOutputMessage` →
         `ResponseOutputText`. We traverse this hierarchy and concatenate all
         text chunks (there can technically be more than one) into a single
