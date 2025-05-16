@@ -24,6 +24,7 @@ Slash commands (enter them as a line at the prompt):
     /clear                      – delete all messages in the current session
     /tool websearch on|off      – enable or disable the web search tool for the session
     /reasoning on|off          – show or hide reasoning summaries (reasoning models only)
+    /delete SESSION_NAME        – delete a saved session
 
 Environment variables
 ---------------------
@@ -572,6 +573,52 @@ class ChatCLI:
             label = _Ansi.style(name, colour)
             print(f"  {indicator_char} {label} (updated: {updated})")
 
+    # -------------- Interactive pickers ---------------
+
+    @staticmethod
+    def _interactive_picker(title: str, options: List[str], current: Optional[str] = None) -> Optional[str]:
+        """Present *options* as a numbered list and return the user's choice.
+
+        A very small helper to avoid an additional dependency like ``inquirer`` or
+        ``prompt_toolkit``.  The UX is deliberately minimal but good enough for
+        power-user workflows: the items are printed with an index, the *current*
+        value (if given) is highlighted with a star, and the user selects by
+        typing the index (or pressing Enter to cancel).
+        """
+
+        if not options:
+            print("(no items available)")
+            return None
+
+        print(_Ansi.style(title, _Ansi.BOLD, _Ansi.FG_MAGENTA))
+
+        for idx, item in enumerate(options, start=1):
+            star = "← current" if current and item == current else ""
+            colour = _Ansi.FG_GREEN if star else _Ansi.FG_CYAN
+            print(f"  {idx}. {_Ansi.style(item, colour)} {star}")
+
+        try:
+            prompt = _readline_safe_prompt("Select number (Enter to cancel): ")
+            choice_str = input(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            print()  # newline to keep things tidy
+            return None
+
+        if not choice_str:
+            # Empty input -> user aborted
+            return None
+
+        if not choice_str.isdigit():
+            print(_Ansi.style("Invalid selection – expected a number.", _Ansi.FG_RED))
+            return None
+
+        choice = int(choice_str)
+        if not (1 <= choice <= len(options)):
+            print(_Ansi.style("Selection out of range.", _Ansi.FG_RED))
+            return None
+
+        return options[choice - 1]
+
     # ---------------- Command handling ---------------
 
     def handle_command(self, line: str) -> bool:
@@ -590,6 +637,16 @@ class ChatCLI:
             print("Session saved. Bye!")
             return False
         elif cmd == "/model":
+            if len(parts) == 1:
+                # Interactive picker
+                selection = self._interactive_picker(
+                    "Select a model:", SUPPORTED_MODELS, current=self.session.model
+                )
+                if selection and selection in SUPPORTED_MODELS:
+                    self.session.model = selection
+                    print(f"[model switched to {self.session.model}]")
+                return True
+
             if len(parts) != 2:
                 print("Usage: /model <model_name>")
             else:
@@ -614,6 +671,23 @@ class ChatCLI:
                 self.session = Session(name=parts[1], model=self.session.model)
                 print(f"[new session '{self.session.name}' started]")
         elif cmd == "/switch":
+            if len(parts) == 1:
+                session_files = sorted(SESSIONS_DIR.glob(f"*{Session.FILENAME_SUFFIX}"))
+                session_names = [f.stem for f in session_files if f.stem != self.session.name]
+                selection = self._interactive_picker(
+                    "Switch to session:", session_names, current=self.session.name
+                )
+                if selection:
+                    try:
+                        self.session.save()
+                        self.session = Session.load(selection)
+                        print(
+                            f"[switched to session '{self.session.name}'] (model={self.session.model})"
+                        )
+                    except FileNotFoundError as exc:
+                        print(exc)
+                return True
+
             if len(parts) != 2:
                 print("Usage: /switch <session_name>")
             else:
@@ -655,6 +729,36 @@ class ChatCLI:
                 self.session.enable_reasoning_summary = parts[1] == "on"
                 state = "enabled" if self.session.enable_reasoning_summary else "disabled"
                 print(f"[reasoning summaries {state}]")
+        elif cmd == "/delete":
+            # Remove a saved session file (cannot be the active one)
+            if len(parts) == 1:
+                session_files = sorted(SESSIONS_DIR.glob(f"*{Session.FILENAME_SUFFIX}"))
+                session_names = [f.stem for f in session_files if f.stem != self.session.name]
+                selection = self._interactive_picker("Delete session:", session_names)
+                if not selection:
+                    return True  # cancelled
+                target = selection
+            elif len(parts) == 2:
+                target = parts[1]
+            else:
+                print("Usage: /delete <session_name>")
+                return True
+
+            if target == self.session.name:
+                print(_Ansi.style("Cannot delete the session you are currently using. Switch to another session first.", _Ansi.FG_RED))
+                return True
+
+            path = SESSIONS_DIR / f"{target}{Session.FILENAME_SUFFIX}"
+            if not path.exists():
+                print(f"Session '{target}' does not exist.")
+                return True
+
+            try:
+                path.unlink()
+                print(f"[session '{target}' deleted]")
+            except OSError as exc:
+                print(_Ansi.style(f"Failed to delete session '{target}': {exc}", _Ansi.FG_RED))
+            return True
         else:
             print(_Ansi.style(f"Unknown command: {cmd} (see /help)", _Ansi.FG_RED))
 
