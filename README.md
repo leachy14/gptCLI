@@ -3,7 +3,7 @@
 Lightweight command‑line interface for chatting with OpenAI models.
 
 ```
-python chat_cli.py [-s SESSION] [-m MODEL]
+python -m chat_cli [-s SESSION] [-m MODEL]
 ```
 
 Key features
@@ -30,8 +30,8 @@ Environment variables
 * `OPENAI_API_KEY` – your API key (required).
 * `OPENAI_BASE_URL` – custom base‑url if you proxy the API (optional).
 
-The CLI streams the assistant’s answer in real time and works with any model that supports the Chat Completions API.
+The CLI streams the assistant's answer in real time and works with any model that supports the Chat Completions API.
 
 ---
 
-This file documents only the public interface; see `chat_cli.py` for implementation details.
+This file documents only the public interface; see the `chat_cli` package for implementation details.
