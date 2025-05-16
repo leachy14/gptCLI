@@ -88,6 +88,41 @@ WARNING_LABEL = _Ansi.style("warning", _Ansi.FG_YELLOW, _Ansi.BOLD)
 # Label used when printing reasoning summaries
 REASONING_LABEL = _Ansi.style("reasoning", _Ansi.FG_MAGENTA, _Ansi.BOLD)
 
+# ---------------------------------------------------------------------------
+# Readline prompt helper
+# ---------------------------------------------------------------------------
+
+# When coloured ANSI escape sequences are included in the prompt string that
+# is passed to `input()`, GNU Readline (used by Python for interactive input
+# if available) counts those bytes as **printable** characters unless
+# instructed otherwise.  This results in mis-aligned cursor positioning and
+# broken line wrapping once the user types beyond the terminal width – the
+# visual artefact the user reported as “it writes over itself”.  Readline
+# solves this by allowing non-printing parts to be wrapped between the control
+# characters \001 (start of *hidden* sequence) and \002 (end).
+#
+# The helper below transparently inserts those markers around every ANSI
+# escape code found in the given prompt so that long user inputs behave as
+# expected.
+
+import re
+
+
+# Regex that matches ANSI CSI escape sequences (e.g. "\033[92m"). It is
+# intentionally simple because we only need to wrap, not validate.
+_ANSI_PATTERN = re.compile(r"\033\[[0-9;]*[A-Za-z]")
+
+
+def _readline_safe_prompt(prompt: str) -> str:
+    """Return *prompt* with ANSI escapes wrapped for correct Readline width."""
+
+    if "\033[" not in prompt:  # fast-path – no colour codes present
+        return prompt
+
+    # Insert \001/\002 around each escape sequence. We must keep the escape
+    # codes themselves unchanged so the terminal still interprets them.
+    return _ANSI_PATTERN.sub(lambda m: f"\001{m.group(0)}\002", prompt)
+
 
 try:
     import openai
@@ -594,6 +629,17 @@ class ChatCLI:
             # correct instructions.
             self.session.messages.clear()
             self.session.messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+            # Also reset any stateful IDs stored in the OpenAI wrapper so the
+            # next request truly starts a fresh thread. Otherwise the backend
+            # may continue the previous context even though we purged our
+            # local history.
+            if hasattr(self.client, "_last_response_id"):
+                self.client._last_response_id = None  # pylint: disable=protected-access
+
+            # Persist the cleared state on disk right away so that exiting the
+            # program without sending another message does not resurrect the
+            # old conversation when the session is re-opened later.
+            self.session.save()
             print("[conversation cleared – system prompt reinstated]")
         elif cmd == "/tool":
             if len(parts) != 3 or parts[1].lower() != "websearch" or parts[2] not in {"on", "off"}:
@@ -639,7 +685,11 @@ class ChatCLI:
 
         while True:
             try:
-                line = input(f"{USER_LABEL}> ").strip()
+                # Wrap ANSI sequences in the prompt so GNU Readline does not
+                # miscount their length which would otherwise break line
+                # wrapping for long user inputs.
+                prompt = _readline_safe_prompt(f"{USER_LABEL}> ")
+                line = input(prompt).strip()
             except (EOFError, KeyboardInterrupt):
                 # Ctrl‑D or Ctrl‑C -> exit politely
                 print("\n[signal caught – exiting]")
