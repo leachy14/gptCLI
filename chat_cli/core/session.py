@@ -26,6 +26,7 @@ SUPPORTED_MODELS = [
     "o1",
     "o3",
     "o4-mini",
+    "o3-mini",
 ]
 
 
