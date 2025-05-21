@@ -104,7 +104,7 @@ class Session:
         self.messages.append(item)
 
     @classmethod
-    def list_sessions(cls) -> None:
+    def list_sessions(cls, current: Optional[str] = None) -> None:
         files = sorted(cls.SESSIONS_DIR.glob(f"*{cls.FILENAME_SUFFIX}"))
         if not files:
             print("(no saved sessions)")
@@ -113,7 +113,7 @@ class Session:
         for file in files:
             name = file.stem
             updated = datetime.fromtimestamp(file.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-            indicator_char = "★" if file == (cls.SESSIONS_DIR / f"{name}{cls.FILENAME_SUFFIX}") else " "
+            indicator_char = "★" if current and name == current else " "
             colour = Ansi.FG_GREEN if indicator_char == "★" else Ansi.FG_CYAN
             label = Ansi.style(name, colour)
-            print(f"  {indicator_char} {label} (updated: {updated})") 
+            print(f"  {indicator_char} {label} (updated: {updated})")
