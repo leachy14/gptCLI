@@ -87,7 +87,7 @@ class Session:
         data = json.loads(path.read_text())
         return cls(
             name=name,
-            model=data.get("model", "gpt-4o-mini"),
+            model=data.get("model", "gpt-4o"),
             messages=data.get("messages", []),
             enable_web_search=data.get("enable_web_search", False),
             enable_reasoning_summary=data.get("enable_reasoning_summary", False),
