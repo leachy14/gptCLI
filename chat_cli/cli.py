@@ -40,9 +40,8 @@ class ChatCLI:
 
     # ---------------- Utility ----------------
 
-    @staticmethod
-    def list_sessions() -> None:
-        Session.list_sessions()
+    def list_sessions(self) -> None:
+        Session.list_sessions(current=self.session.name)
 
     # -------------- Interactive pickers ---------------
 
