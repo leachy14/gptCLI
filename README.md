@@ -2,6 +2,12 @@
 
 Lightweight command‑line interface for chatting with OpenAI models.
 
+Install the dependencies with:
+
+```
+pip install -r requirements.txt
+```
+
 ```
 python -m chat_cli [-s SESSION] [-m MODEL]
 ```
