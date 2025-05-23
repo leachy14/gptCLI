@@ -14,6 +14,7 @@ from ..utils import (
     WARNING_LABEL,
     REASONING_LABEL,
     Spinner,
+    console,
 )
 
 

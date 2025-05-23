@@ -42,3 +42,6 @@ venv.bak/
 
 # Logs
 *.log 
+
+# Documentation
+docs/
