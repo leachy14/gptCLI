@@ -13,6 +13,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+try:
+    import questionary  # type: ignore
+except Exception:  # pragma: no cover - library might be missing in tests
+    class _DummyQuestionary:
+        def select(self, *args, **kwargs):
+            raise RuntimeError("questionary library is required")
+
+    questionary = _DummyQuestionary()
+
 from openai import OpenAI  # type: ignore
 
 from .core import Session, SUPPORTED_MODELS, SYSTEM_PROMPT
@@ -49,11 +58,23 @@ class ChatCLI:
     def _interactive_picker(
         title: str, options: List[str], current: Optional[str] = None
     ) -> Optional[str]:
-        """Present *options* as a numbered list and return the user's choice."""
+        """Present *options* to the user and return the selected value."""
         if not options:
             print("(no items available)")
             return None
 
+        if questionary is not None:
+            try:
+                return questionary.select(
+                    title,
+                    choices=options,
+                    default=current,
+                ).ask()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                return None
+
+        # Fallback if questionary is unavailable
         print(Ansi.style(title, Ansi.BOLD, Ansi.FG_MAGENTA))
         for idx, item in enumerate(options, start=1):
             star = "← current" if current and item == current else ""
