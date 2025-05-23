@@ -16,7 +16,11 @@ class BaseChatCLITest(unittest.TestCase):
         # Patch print to suppress command feedback
         self.print_patcher = patch('builtins.print')
         self.print_patcher.start()
-        
+
+        # Patch spinner to avoid background threads during tests
+        self.spinner_patcher = patch('chat_cli.utils.spinner.Spinner')
+        self.mock_spinner_cls = self.spinner_patcher.start()
+
         # Mock the OpenAI client
         self.mock_client = Mock()
         self.mock_wrapper = OpenAIClientWrapper(self.mock_client)
@@ -37,6 +41,7 @@ class BaseChatCLITest(unittest.TestCase):
         # Stop the patchers
         self.sessions_dir_patcher.stop()
         self.print_patcher.stop()
+        self.spinner_patcher.stop()
         
         # Clean up test session files
         if self.test_sessions_dir.exists():
