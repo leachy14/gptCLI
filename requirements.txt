@@ -1,2 +1,8 @@
 openai
 yaspin
+rich
+questionary
+
+
+
+

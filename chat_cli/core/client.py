@@ -119,19 +119,20 @@ class OpenAIClientWrapper:
                         spinner.stop()
                         first_token_received = True
 
-                    print(delta.content, end="", flush=True)
+                    console.print(delta.content, end="")
+                    console.file.flush()
                     accumulator.append(delta.content)
 
                 if not first_token_received:
                     spinner.stop()
-                print()  # new line after stream ends
+                console.print()  # new line after stream ends
             except openai.OpenAIError as e:
                 spinner.stop()
-                print(f"\n[{ERROR_LABEL}] OpenAI API error: {e}\n")
+                console.print(f"\n[{ERROR_LABEL}] OpenAI API error: {e}\n")
                 return ""
             except KeyboardInterrupt:
                 spinner.stop()
-                print("\n[interrupted]")
+                console.print("\n[interrupted]")
                 return ""
 
             return "".join(accumulator)
@@ -180,9 +181,9 @@ class OpenAIClientWrapper:
                 self._extract_summary_from_response(resp) if enable_reasoning_summary else ""
             )
 
-            print(f"{aggregated_text}")
+            console.print(f"{aggregated_text}")
             if aggregated_summary:
-                print(f"{REASONING_LABEL}> {aggregated_summary}")
+                console.print(f"{REASONING_LABEL}> {aggregated_summary}")
 
             return aggregated_text
 
@@ -194,7 +195,7 @@ class OpenAIClientWrapper:
                 unsupported_features.append("reasoning summary")
 
             feature_list = " and ".join(unsupported_features) or "requested feature"
-            print(
+            console.print(
                 f"\n[{WARNING_LABEL}] {feature_list.capitalize()} failed or is not supported for model '{model}': {e}. "
                 "Retrying without unsupported features…\n"
             )
@@ -205,5 +206,5 @@ class OpenAIClientWrapper:
                 enable_reasoning_summary=False,
             )
         except KeyboardInterrupt:
-            print("\n[interrupted]")
+            console.print("\n[interrupted]")
             return "" 
