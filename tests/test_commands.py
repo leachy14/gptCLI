@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from .test_base import BaseChatCLITest
 
 class TestCommands(BaseChatCLITest):
@@ -10,6 +11,16 @@ class TestCommands(BaseChatCLITest):
         # Test switching to an unsupported model
         self.chat_cli.handle_command("/model invalid-model")
         self.assertEqual(self.test_session.model, "gpt-4.1")  # Should not change
+
+    @patch("chat_cli.cli.questionary.select")
+    def test_model_interactive(self, mock_select):
+        """Interactive model selection uses questionary"""
+        mock_select.return_value.ask.return_value = "gpt-4.1"
+
+        self.chat_cli.handle_command("/model")
+
+        mock_select.assert_called_once()
+        self.assertEqual(self.test_session.model, "gpt-4.1")
 
     def test_clear_command(self):
         """Test that the clear command works correctly"""
