@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-from ..utils.ansi import Ansi
+from ..utils.ansi import Ansi, console
 
 # A single, persistent system message ensures the model is aware that it is
 # interacting in a terminal context and should optimise readability for that
@@ -108,13 +108,13 @@ class Session:
     def list_sessions(cls, current: Optional[str] = None) -> None:
         files = sorted(cls.SESSIONS_DIR.glob(f"*{cls.FILENAME_SUFFIX}"))
         if not files:
-            print("(no saved sessions)")
+            console.print("(no saved sessions)")
             return
-        print(Ansi.style("Saved sessions:", Ansi.BOLD, Ansi.FG_MAGENTA))
+        console.print(Ansi.style("Saved sessions:", Ansi.BOLD, Ansi.FG_MAGENTA))
         for file in files:
             name = file.stem
             updated = datetime.fromtimestamp(file.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
             indicator_char = "★" if current and name == current else " "
             colour = Ansi.FG_GREEN if indicator_char == "★" else Ansi.FG_CYAN
             label = Ansi.style(name, colour)
-            print(f"  {indicator_char} {label} (updated: {updated})")
+            console.print(f"  {indicator_char} {label} (updated: {updated})")

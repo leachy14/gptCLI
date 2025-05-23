@@ -1,5 +1,6 @@
 openai
+rich
 questionary
 yaspin
-rich
+
 

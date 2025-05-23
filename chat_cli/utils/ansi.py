@@ -1,26 +1,30 @@
-"""ANSI color and styling utilities for terminal output."""
+"""Colour and styling helpers built on :mod:`rich`."""
 
 import os
+from rich.console import Console
+
+
+console = Console()
 
 
 class Ansi:
-    """Lightweight collection of ANSI escape codes we rely on."""
+    """Lightweight collection of style names used throughout the app."""
 
-    RESET = "\033[0m"
-    BOLD = "\033[1m"
+    BOLD = "bold"
 
-    FG_GREEN = "\033[92m"
-    FG_CYAN = "\033[96m"
-    FG_MAGENTA = "\033[95m"
-    FG_YELLOW = "\033[93m"
-    FG_RED = "\033[91m"
+    FG_GREEN = "green"
+    FG_CYAN = "cyan"
+    FG_MAGENTA = "magenta"
+    FG_YELLOW = "yellow"
+    FG_RED = "red"
 
     @staticmethod
     def style(text: str, *codes: str) -> str:
-        """Return `text` wrapped in the given ANSI codes unless NO_COLOR set."""
+        """Return *text* wrapped in rich markup unless ``NO_COLOR`` is set."""
         if os.getenv("NO_COLOR") is not None:
             return text
-        return "".join(codes) + text + Ansi.RESET
+        style = " ".join(codes)
+        return f"[{style}]{text}[/]"
 
 
 # Common labels used throughout the application

@@ -9,6 +9,7 @@ import argparse
 import os
 import sys
 import readline  # noqa: F401 – side-effect: history & line editing
+from rich.panel import Panel
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -29,10 +30,7 @@ from .core.client import OpenAIClientWrapper
 from .utils import (
     Ansi,
     USER_LABEL,
-    ASSISTANT_LABEL,
-    ERROR_LABEL,
-    WARNING_LABEL,
-    readline_safe_prompt,
+    console,
 )
 
 # ---------------------------------------------------------------------------
@@ -60,7 +58,7 @@ class ChatCLI:
     ) -> Optional[str]:
         """Present *options* to the user and return the selected value."""
         if not options:
-            print("(no items available)")
+            console.print("(no items available)")
             return None
 
         if questionary is not None:
@@ -76,28 +74,28 @@ class ChatCLI:
 
         # Fallback if questionary is unavailable
         print(Ansi.style(title, Ansi.BOLD, Ansi.FG_MAGENTA))
+
         for idx, item in enumerate(options, start=1):
-            star = "← current" if current and item == current else ""
+            star = "\u2190 current" if current and item == current else ""
             colour = Ansi.FG_GREEN if star else Ansi.FG_CYAN
-            print(f"  {idx}. {Ansi.style(item, colour)} {star}")
+            console.print(f"  {idx}. {Ansi.style(item, colour)} {star}")
 
         try:
-            prompt = readline_safe_prompt("Select number (Enter to cancel): ")
-            choice_str = input(prompt).strip()
+            choice_str = console.input("Select number (Enter to cancel): ").strip()
         except (EOFError, KeyboardInterrupt):
-            print()
+            console.print()
             return None
 
         if not choice_str:
             return None  # cancelled
 
         if not choice_str.isdigit():
-            print(Ansi.style("Invalid selection – expected a number.", Ansi.FG_RED))
+            console.print(Ansi.style("Invalid selection – expected a number.", Ansi.FG_RED))
             return None
 
         choice = int(choice_str)
         if not (1 <= choice <= len(options)):
-            print(Ansi.style("Selection out of range.", Ansi.FG_RED))
+            console.print(Ansi.style("Selection out of range.", Ansi.FG_RED))
             return None
 
         return options[choice - 1]
@@ -116,11 +114,11 @@ class ChatCLI:
         if cmd == "/help":
             from . import __doc__ as _doc  # lazy import to avoid circularity
 
-            print(_doc or "(no help available)")
+            console.print(_doc or "(no help available)")
 
         elif cmd == "/exit":
             self.session.save()
-            print("Session saved. Bye!")
+            console.print("Session saved. Bye!")
             return False
 
         elif cmd == "/model":
@@ -130,35 +128,35 @@ class ChatCLI:
                 )
                 if selection and selection in SUPPORTED_MODELS:
                     self.session.model = selection
-                    print(f"[model switched to {self.session.model}]")
+                    console.print(f"[model switched to {self.session.model}]")
                 return True
 
             if len(parts) != 2:
-                print("Usage: /model <model_name>")
+                console.print("Usage: /model <model_name>")
             else:
                 model_name = parts[1]
                 if model_name not in SUPPORTED_MODELS:
-                    print("Unsupported model. Use /models to see the list of supported models.")
+                    console.print("Unsupported model. Use /models to see the list of supported models.")
                 else:
                     self.session.model = model_name
-                    print(f"[model switched to {self.session.model}]")
+                    console.print(f"[model switched to {self.session.model}]")
 
         elif cmd == "/models":
-            print("Supported models:")
+            console.print("Supported models:")
             for m in SUPPORTED_MODELS:
                 marker = " <- current" if m == self.session.model else ""
-                print(f"  {m}{marker}")
+                console.print(f"  {m}{marker}")
 
         elif cmd == "/list":
             self.list_sessions()
 
         elif cmd == "/new":
             if len(parts) != 2:
-                print("Usage: /new <session_name>")
+                console.print("Usage: /new <session_name>")
             else:
                 self.session.save()
                 self.session = Session(name=parts[1], model=self.session.model)
-                print(f"[new session '{self.session.name}' started]")
+                console.print(f"[new session '{self.session.name}' started]")
 
         elif cmd == "/switch":
             if len(parts) == 1:
@@ -173,24 +171,24 @@ class ChatCLI:
                     try:
                         self.session.save()
                         self.session = Session.load(selection)
-                        print(
+                        console.print(
                             f"[switched to session '{self.session.name}'] (model={self.session.model})"
                         )
                     except FileNotFoundError as exc:
-                        print(exc)
+                        console.print(exc)
                 return True
 
             if len(parts) != 2:
-                print("Usage: /switch <session_name>")
+                console.print("Usage: /switch <session_name>")
             else:
                 try:
                     self.session.save()
                     self.session = Session.load(parts[1])
-                    print(
+                    console.print(
                         f"[switched to session '{self.session.name}'] (model={self.session.model})"
                     )
                 except FileNotFoundError as exc:
-                    print(exc)
+                    console.print(exc)
 
         elif cmd == "/clear":
             # Remove all turn messages but keep system prompt
@@ -202,7 +200,7 @@ class ChatCLI:
                 self.client._last_response_id = None  # pylint: disable=protected-access
 
             self.session.save()
-            print("[conversation cleared – system prompt reinstated]")
+            console.print("[conversation cleared – system prompt reinstated]")
 
         elif cmd == "/tool":
             if (
@@ -210,19 +208,19 @@ class ChatCLI:
                 or parts[1].lower() != "websearch"
                 or parts[2] not in {"on", "off"}
             ):
-                print("Usage: /tool websearch on|off")
+                console.print("Usage: /tool websearch on|off")
             else:
                 self.session.enable_web_search = parts[2] == "on"
                 state = "enabled" if self.session.enable_web_search else "disabled"
-                print(f"[web search tool {state}]")
+                console.print(f"[web search tool {state}]")
 
         elif cmd == "/reasoning":
             if len(parts) != 2 or parts[1] not in {"on", "off"}:
-                print("Usage: /reasoning on|off")
+                console.print("Usage: /reasoning on|off")
             else:
                 self.session.enable_reasoning_summary = parts[1] == "on"
                 state = "enabled" if self.session.enable_reasoning_summary else "disabled"
-                print(f"[reasoning summaries {state}]")
+                console.print(f"[reasoning summaries {state}]")
 
         elif cmd == "/delete":
             if len(parts) == 1:
@@ -237,11 +235,11 @@ class ChatCLI:
             elif len(parts) == 2:
                 target = parts[1]
             else:
-                print("Usage: /delete <session_name>")
+                console.print("Usage: /delete <session_name>")
                 return True
 
             if target == self.session.name:
-                print(
+                console.print(
                     Ansi.style(
                         "Cannot delete the session you are currently using. Switch to another session first.",
                         Ansi.FG_RED,
@@ -251,18 +249,18 @@ class ChatCLI:
 
             path = Session.SESSIONS_DIR / f"{target}{Session.FILENAME_SUFFIX}"
             if not path.exists():
-                print(f"Session '{target}' does not exist.")
+                console.print(f"Session '{target}' does not exist.")
                 return True
 
             try:
                 path.unlink()
-                print(f"[session '{target}' deleted]")
+                console.print(f"[session '{target}' deleted]")
             except OSError as exc:
-                print(Ansi.style(f"Failed to delete session '{target}': {exc}", Ansi.FG_RED))
+                console.print(Ansi.style(f"Failed to delete session '{target}': {exc}", Ansi.FG_RED))
             return True
 
         else:
-            print(Ansi.style(f"Unknown command: {cmd} (see /help)", Ansi.FG_RED))
+            console.print(Ansi.style(f"Unknown command: {cmd} (see /help)", Ansi.FG_RED))
 
         return True
 
@@ -270,14 +268,9 @@ class ChatCLI:
 
     def repl(self) -> None:
         """Run the interactive read–eval–print-loop."""
-        banner_lines = [
-            Ansi.style(" ┌──────────────────────────────────────────────┐", Ansi.FG_MAGENTA),
-            Ansi.style(" │         OpenAI   Chat   CLI                │", Ansi.FG_MAGENTA, Ansi.BOLD),
-            Ansi.style(" └──────────────────────────────────────────────┘", Ansi.FG_MAGENTA),
-        ]
-        print("\n".join(banner_lines))
+        console.print(Panel.fit("OpenAI Chat CLI", style="bold magenta"))
 
-        print(
+        console.print(
             Ansi.style("Type your message and press Enter. Commands start with '/'.", Ansi.FG_YELLOW),
             Ansi.style(f"Current model: {self.session.model}.", Ansi.FG_YELLOW),
             Ansi.style("Type /help for help.", Ansi.FG_YELLOW),
@@ -286,10 +279,9 @@ class ChatCLI:
 
         while True:
             try:
-                prompt = readline_safe_prompt(f"{USER_LABEL}> ")
-                line = input(prompt).strip()
+                line = console.input(f"{USER_LABEL}> ").strip()
             except (EOFError, KeyboardInterrupt):
-                print("\n[signal caught – exiting]")
+                console.print("\n[signal caught – exiting]")
                 self.session.save()
                 break
 
@@ -341,7 +333,7 @@ def run_cli() -> None:  # pragma: no cover
     except FileNotFoundError:
         default_model = args.model or os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o")
         if default_model not in SUPPORTED_MODELS:
-            print(
+            console.print(
                 f"Warning: model '{default_model}' is not in the supported list. "
                 "Falling back to default 'gpt-4o'."
             )
