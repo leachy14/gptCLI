@@ -13,8 +13,8 @@ class BaseChatCLITest(unittest.TestCase):
         self.sessions_dir_patcher = patch('chat_cli.core.session.Session.SESSIONS_DIR', self.test_sessions_dir)
         self.sessions_dir_patcher.start()
         
-        # Patch print to suppress command feedback
-        self.print_patcher = patch('builtins.print')
+        # Patch console.print to suppress command feedback
+        self.print_patcher = patch('chat_cli.utils.ansi.console.print')
         self.print_patcher.start()
         
         # Mock the OpenAI client
